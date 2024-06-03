@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Function to display usage information
+usage() {
+  echo "Usage: ccwc [-c|-l|-w|-m] [file...]"
+  echo "  -c  Print the byte count"
+  echo "  -l  Print the line count"
+  echo "  -w  Print the word count"
+  echo "  -m  Print the character count"
+}
+
+# Function to count lines, words, and bytes in a file
+count_file() {
+  local file="$1"
+  local line_count word_count byte_count char_count
+
+  if [[ "$file" == "-" ]]; then
+    # Read from standard input
+    data="$(cat -)"
+  else
+    # Read from file
+    data="$(cat "$file")"
+  fi
+
+  line_count=$(echo "$data" | wc -l)
+  word_count=$(echo "$data" | wc -w)
+  byte_count=$(echo "$data" | wc -c)
+  char_count=$(echo -n "$data" | wc -m)
+
+  if [[ "$option" == "-c" ]]; then
+    printf "%8d %s\n" "$byte_count" "$file"
+  elif [[ "$option" == "-l" ]]; then
+    printf "%8d %s\n" "$line_count" "$file"
+  elif [[ "$option" == "-w" ]]; then
+    printf "%8d %s\n" "$word_count" "$file"
+  elif [[ "$option" == "-m" ]]; then
+    printf "%8d %s\n" "$char_count" "$file"
+  else
+    printf "%8d %8d %8d %s\n" "$line_count" "$word_count" "$byte_count" "$file"
+  fi
+}
+
+# Parse command line options
+option=""
+files=()
+
+while getopts ":clwm" opt; do
+  case $opt in
+    c) option="-c" ;;
+    l) option="-l" ;;
+    w) option="-w" ;;
+    m) option="-m" ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+# Check if no files are provided
+if [[ $# -eq 0 ]]; then
+  files=("-")  # Read from standard input
+else
+  files=("$@")
+fi
+
+total_line_count=0
+total_word_count=0
+total_byte_count=0
+
+for file in "${files[@]}"; do
+  if [[ "${files[*]}" =~ "-" && ${#files[@]} -gt 1 ]]; then
+    echo "$file:"
+  fi
+  count_file "$file"
+  if [[ ${#files[@]} -gt 1 ]]; then
+    file_data="$(cat "$file")"
+    total_line_count=$((total_line_count + $(echo "$file_data" | wc -l)))
+    total_word_count=$((total_word_count + $(echo "$file_data" | wc -w)))
+    total_byte_count=$((total_byte_count + $(echo "$file_data" | wc -c)))
+  fi
+done
+
+if [[ ${#files[@]} -gt 1 ]]; then
+  printf "%8d %8d %8d total\n" "$total_line_count" "$total_word_count" "$total_byte_count"
+fi
